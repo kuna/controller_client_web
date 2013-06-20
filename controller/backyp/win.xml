@@ -1,0 +1,33 @@
+<ControllerLayout orientation='HORIZONTAL'
+    background='bg_win.png' sound='win.mp3'>
+    <TextView 
+        id='100'
+        text=''
+        width='200'
+        height='50'
+        x='140'
+        y='150'
+	/>
+    <Button 
+        id='1010'
+        text=''
+        width='200'
+        height='90'
+        x='26'
+        y='560'
+        background='btn_quit_normal.png' 
+        pressed='btn_quit_press.png' 
+        sound='button_1.wav'
+	/>
+    <Button 
+        id='1011'
+        text=''
+        width='200'
+        height='90'
+        x='253'
+        y='560'
+        background='btn_retry_normal.png' 
+        pressed='btn_retry_press.png' 
+        sound='button_1.wav'
+	/>
+</ControllerLayout>

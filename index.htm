@@ -1,0 +1,438 @@
+<!--
+by kuna
+SW Maestro proj
+GPL License
+-->
+
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0,user-scalable=no, width=device-width" />	<!-- width=480/device-width -->
+<title>PhoneController</title>
+<script language="javascript" src="./jquery-1.10.1.js"></script>
+<script language="javascript" src="./controller.js"></script>
+<script language="javascript" src="./message.js"></script>
+<script language="javascript" src="./socket.js"></script>
+
+<!-- temp script -->
+<script language ="javascript">
+
+function cont_over(obj) {
+	if ($(obj).attr("press")) {
+		$(obj).attr("org", $(obj).css("background")); 
+		$(obj).css("background", "url(./controller/"+$(obj).attr("press")+") no-repeat 0 0");
+		$(obj).css("background-size", "100%");
+		$(obj).css("cursor", "hand");
+	}
+	sock.send("EVENT " + device_id + " " + EVENT_BUTTONDOWN + " " + $(obj).attr('id'));
+}
+
+function cont_out(obj) {
+	if ($(obj).attr("org")) {
+		$(obj).css("background", $(obj).attr("org"));
+	}
+	sock.send("EVENT " + device_id + " " + EVENT_BUTTONUP + " " + $(obj).attr('id'));
+}
+
+
+/*
+ * Initalize part
+ * - var initalization
+ */
+var w_size, w_hei;
+var w_ratio;
+var sock;
+
+var sensor_ori, sensor_motion;
+$(document).ready( function() {
+	$('#join_id').keypress(function(e){
+		if (e.keyCode == '13') {
+			OnJoin();
+		}
+		
+		// only number
+		if ((e.keyCode < 48) || (e.keyCode > 57)){e.returnValue = false;}
+	});
+	
+	$('#join_btn').click (function(e){
+		OnJoin();
+	});
+
+	
+	// check is desktop
+	
+	if (isDesktop()) {
+		$("#desktop").show();
+		
+		// temp code
+		w_ratio=1;
+		w_size=480;
+		w_hei=800;
+		$("#page").css('width', w_size);
+		$("#page").css('height', w_hei);
+		
+		//return;
+		$("#join").show();	// ** this is temp **
+	} else {
+		// start initialization
+		w_size = $(document).width();
+		w_ratio = w_size/480;
+		w_hei = $(window).height();
+		$("#page").css('width', w_size);
+		$("#page").css('height', w_hei);
+		$("#message").css('width', w_size-80);
+		$("#message").css('margin-left', (w_size-60)/-2);
+		
+		showJoin();
+	}
+	
+	if (!("WebSocket" in window)) {
+		alert("no websocket support");
+	} else {
+		sock = new connect();
+		if (sock.initialize() == false) {
+			alert("socket error");
+		}
+	}
+	sock.setOnMessage(OnJoinWebHandler);
+	
+	sensor_ori = orientationsensor();
+	sensor_motion = motionsensor();
+	
+	mode_loading(false);
+});
+
+function OnJoin() {
+	device_id = $('#join_id').val();
+	mode_loading(true);
+	
+	sock.setOnMessage(OnJoinWebHandler);
+	sock.send("JOIN " + device_id );
+}
+
+function OnJoinWebHandler(args) {	// msg.data
+	if (args[0] == "ERROR") {
+		if (args.length<2) {
+			badalarm("정의되지 않은 에러가 발생하였습니다.");
+			OnJoinFailed();
+		}
+		if (args[1] == "NOROOM") {
+			badalarm("방이 생성되지 않았습니다.");
+			OnJoinFailed();
+		}
+		if (args[1] == "NONUMBER") {
+			badalarm("유효하지 않은 PIN 코드입니다.");
+			OnJoinFailed();
+		}
+	}
+	
+	if (args[0] == "OK") {
+		if (args[2] != "ALL") {
+			// join에는 성공, 알람창을 띄워주기
+			alarm("join 하였습니다. 모든 플레이어들이 join 할 때까지 기다려주세요.");
+		} else if (args[2] == "ALL") {
+			OnJoinSuccess();
+		}
+	}
+}
+
+function OnJoinSuccess() {
+	$('#join_id').val("");
+	mode_loading(false);
+	hideJoin();
+	showController();
+	startSensorTimer();
+	sock.setOnMessage(OnControllerWebHandler);
+}
+
+function OnJoinFailed() {
+	$('#join_id').val("");
+	mode_loading(false);
+}
+
+function OnControllerWebHandler(args) {
+	if (args[0] == "EDIT") {
+		if (args[4] == "text") {
+			$("#"+args[2]).html(args[5]);
+		} else if (args[4] == "x") {
+			$("#"+args[2]).css("x", Number(args[5])*w_ratio);
+		} else if (args[4] == "y") {
+			$("#"+args[2]).css("y", Number(args[5])*w_ratio);
+		} else if (args[4] == "width") {
+			$("#"+args[2]).css("width", Number(args[5])*w_ratio);
+		} else if (args[4] == "height") {
+			$("#"+args[2]).css("height", Number(args[5])*w_ratio);
+		} else if (args[4] == "background") {
+			$("#"+args[2]).css("background", "url(./images/" +args[5]+") 0 0 no-repeat");
+		}
+	}
+}
+
+var EVENT_BUTTONDOWN = 300;
+var EVENT_BUTTONUP = 301;
+var EVENT_MOTION = 200;
+var EVENT_ORIENTATION = 201;
+
+var device_id = null;
+var arg_ori=null;
+var arg_motion=null;
+var timerVal;
+function startSensorTimer() {
+	timerVal = setInterval(function() {
+		if (!isDesktop() && sensor_motion) {sock.send("EVENT " + device_id + " " + EVENT_MOTION + " " + arg_motion);}
+		if (!isDesktop() && sensor_ori) {sock.send("EVENT " + device_id + " " + EVENT_ORIENTATION + " " + arg_ori);}
+	}, 50);
+}
+function stopSensorTimer() {
+	clearInterval(timerVal);
+}
+
+
+// etc
+function showController() {
+	// slide left with transparency
+	$('#controller').css('left', w_size+'px');
+	$('#controller').fadeIn('fast').animate({
+            'left':0
+            }, {duration: 'slow', queue: false});
+}
+
+function hideController() {
+	// just hide
+	$('#controller').hide();
+}
+
+function clearController() {
+	// html nonde
+	$('#controller').html("");
+}
+
+function hideJoin() {
+	// slide to left with transparency
+	$('#join').fadeOut('fast').animate({
+            'left': '-'+w_size+'px'
+            }, 'slow');
+}
+
+function showJoin() {
+	// slide left with transparency
+	$('#join').css('left', w_size+'px');
+	$('#join').fadeIn('fast').animate({
+            'left':0
+            }, {duration: 'slow', queue: false});
+}
+
+var mode = MODE_NONE;
+var MODE_NONE = 0x0010;
+var MODE_JOIN = 0x0011;
+var MODE_CONTROLLER = 0x0012;
+function mode_change(m) {
+	mode = m;
+}
+
+var isLoading = false;
+function mode_loading(isload) {
+	if (isload) {
+		$('#loading').show();
+		isLoading = true;
+	} else {
+		$('#loading').fadeOut('slow');
+		isLoading = false;
+	}
+}
+function toggleLoading() {
+	mode_loading(!isLoading);
+}
+// etc end
+
+// motion part 
+var ori_x, ori_y, ori_z;
+var mot_x, mot_y, mot_z;
+var oric_x=0, oric_y=0, oric_z=0;
+var motc_x=0, motc_y=0, motc_z=0;
+function orientationsensor() {
+	if (!isDesktop()) {
+		if (window.DeviceOrientationEvent) {
+			window.addEventListener('deviceorientation', function(eventData) {
+				// z-axis (수평나침반)
+				ori_x = eventData.alpha;
+				// x-axis (위 아래)
+				ori_y = eventData.beta*-1;
+				// y-axis (상하)
+				ori_z = eventData.gamma;
+				arg_ori = (ori_x-oric_x) + "," + (ori_y-oric_y) + "," + (ori_z-oric_z);
+				$("#motion").html(arg_ori);
+			}, false);
+			return true;
+		}/* else if (window.OrientationEvent) {
+			window.addEventListener('MozOrientation', function(eventData) {
+				// x 는 좌-우 기울기로 -1부터 +1까지의 값이다.따라서 우리는 이를 각도로 변환할 필요가 있다.
+				ori_x = eventData.x * 90;
+			
+				// y 는 위-아래 기울기로 -1부터 +1까지 값이다. 따라서 우리는 이를 각도로 변환할 필요가 있다.
+				// 또한 이 값을 역으로 뒤집어야 장비가 우리 앞쪽으로 오면 양수가 된다.
+				ori_y = eventData.y * -90;
+			
+				// z 는 장치의 수직 가속정보이다.
+				ori_z = eventData.z;
+				
+				arg_ori = (ori_x-oric_x) + "," + (ori_y-oric_y) + "," + (ori_z-oric_z);
+				$("#motion").html(arg_ori);
+			}, false);
+		}*/
+	}
+	return false;	// NOT SUPPORTED METHOD
+}
+function caliOri() {
+	oric_x = ori_x;
+	oric_y = ori_y;
+	oric_z = ori_z;
+}
+
+function motionsensor() {
+	if (!isDesktop()) {
+		if (window.DeviceMotionEvent) {
+			window.addEventListener('devicemotion', deviceMotionHandler, false);
+			return true;
+		}
+		function deviceMotionHandler(eventData) {
+			// 중력을 포함한 가속 데이터를 담는다.
+			var acceleration = eventData.accelerationIncludingGravity;
+			
+			mot_x = acceleration.x;
+			mot_y = acceleration.y;
+			mot_z = acceleration.z;
+			
+			// 가속도와 계산된 값을 화면에 보여준다.
+			arg_motion = (mot_x-motc_x) + "," + (mot_y-motc_y) + "," + (mot_z-motc_z);
+			$("#motion2").html(arg_motion);
+		}
+	}
+	return false;
+}
+function caliMotion() {
+	motc_x = mot_x;
+	motc_y = mot_y;
+	motc_z = mot_z;
+}
+// sensor end
+
+// cleanup
+function Disconnect() {
+	sock.socket.close();
+	CleanUp();
+	badalarm("connection disconnected");	
+}
+function CleanUp() {
+	mode_change(MODE_NONE);
+	mode_loading(false);
+	hideJoin();
+	hideController();
+}
+
+</script>
+
+<style type="text/css">
+body {
+	margin:0;
+	padding:0;
+}
+
+.bg_100 {
+	-webkit-background-size: 100% auto; -moz-background-size: 100% auto; -o-background-size: 100% auto; background-size: 100% auto;
+}
+.outer_text {
+	display:table-cell; vertical-align:middle;
+}
+.inner_text {
+	display:table-cell; vertical-align:middle;
+}
+
+#page {
+	position:relative;
+	width:100%;
+}
+
+#loading {
+	background-color: rgba(0,0,0,0.2);
+	z-index:9999;
+}
+#loading .inner {
+	background:url(./loading.gif) 0 0 no-repeat;
+	top:50%; left:50%;
+	position:absolute;
+	width:150px; height:150px;
+	margin:-75px 0 0 -75px;
+}
+
+#controller {
+	width:100%;
+	height:100%;
+}
+#loading,
+#join,
+#controller {
+	position:absolute;
+	top:0; left:0;
+	width:100%;
+	height:100%;
+}
+
+#message {
+	width:300px;
+	padding:5px 10px;
+	font-size:12px;
+	color:#fff;
+	line-height:5px;
+	background-color:rgba(0,0,0,0.8);
+	border-radius:10px;
+	
+	position:absolute;
+	left:50%;
+	margin-left:-150px;
+	bottom:20px;
+}
+</style>
+
+<!-- temp script end -->
+
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />
+<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+<script>
+$(function() {
+	$( "input[type=submit], a, button" )
+	.button()
+	.click(function( event ) {
+		event.preventDefault();
+	});
+});
+</script>
+
+</head>
+
+<body>
+<div id="desktop" style="display:none;">
+    이거 폰으로만 들어오셔야 되는대 ㅡㅡ
+</div>
+    
+<div id="page" style="overflow:hidden;">
+    <div id="loading"><div class="inner"></div></div>
+    <div id="join" style="width:100%; height:100%; display:none;">
+    	<div class="inner" style="margin:50% auto 0; text-align:center;">
+        <input type="text" id="join_id" /><br><br><br>
+        <input type="submit" id="join_btn" value="Join"/>
+        </div>
+    </div>
+	<div id="controller" class='bg_100' style="background:#000000;display:none;"></div>
+</div>
+
+<div id="message" style="display:none;"></div><br />
+
+<!-- for debug -->
+<div id="motion">(not supported)</div><br />
+<div id="motion2">(not supported)</div><br />
+<div id="status"></div>
+
+</body>
+</html>

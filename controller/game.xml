@@ -1,0 +1,35 @@
+<ControllerLayout orientation='HORIZONTAL'
+    background='bg.jpg'>
+    <TextView 
+        id='101'
+        text=''
+        width='480'
+        height='800'
+        x='0'
+        y='0'
+		background='grass_overlay.png'
+	/>
+	
+    <Button 
+        id='1'
+        text=''
+        width='240'
+        height='660'
+        x='0'
+        y='0'
+        background='flag_blue_down.png' 
+        pressed='flag_blue_up.png' 
+        sound='blue.ogg'
+	/>
+    <Button 
+        id='2'
+        text=''
+        width='240'
+        height='660'
+        x='240'
+        y='0'
+        background='flag_white_down.png' 
+        pressed='flag_white_up.png' 
+        sound='white.ogg'
+	/>
+</ControllerLayout>
