@@ -2,7 +2,7 @@
 function connect() {
 	this.initialized = false;
 	
-	this.host = "ws://112.169.76.33:1240/"
+	this.host = "ws://218.54.45.177:1240"
 	//this.host = "ws://localhost:1240/"
 	//this.host = "ws://147.46.240.46:1240/"
 	
@@ -59,6 +59,13 @@ function connect() {
 		if (args[0] == "MODIFY") {
 			loadLayout(args[3]);
 		}
+		if (args[0] == "RESULT") {
+			if (args[3] == "0") {
+				loadLayout("lose");
+			} else if (args[3] == "1") {
+				loadLayout("win");
+			}
+		}
 		
 		// do custom functions
 		this.OnCustomMessage(args);
@@ -72,9 +79,15 @@ function connect() {
 		this.OnCustomMessage = f;
 	}
 	
+	// dont send duplicate message...
+	this._msg = "";
 	this.send = function (str) {
 		try {
-			this.socket.send(str);
+			if (this._msg == str) {
+				return;
+			}
+			this._msg = str;
+			this.socket.send(str + "\n");
 		} catch(e) {
 			alert(e);
 		}

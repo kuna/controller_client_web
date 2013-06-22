@@ -100,9 +100,20 @@ function loadLayout(name) {
 				}
 													
 				// create button
-				var html = "<div class='bg_100' id='" + $(this).attr("id") + "' ontouchstart='cont_over(this)' ontouchend='cont_out(this)' ontouchcancel='cont_out(this)'  onmousedown='cont_over(this);' onmouseup='cont_out(this);' press='" + attr_press + "' sound='" + attr_sound +
+				// ontouchenter='cont_over(this)' ontouchend='cont_out(this)'  ontouchcancel='cont_out(this)'  onmousedown='cont_over(this);' onmouseup='cont_out(this);'
+				var html = "<div class='bg_100' id='" + $(this).attr("id") + "' press='" + attr_press + "' sound='" + attr_sound +
 				"' style='position:absolute; display:flex;" + writePxAttr("left", $(this).attr("x")) + writePxAttr("top", $(this).attr("y")) + writePxAttr("width", $(this).attr("width")) + writePxAttr("height", $(this).attr("height")) + writeBgAttr($(this).attr("background")) + writeCSSAttr("opacity", $(this).attr("opacity")) + writeDisplayAttr($(this).attr("display")) + "text-align:center; align-self: center;'>" + $(this).attr("text") + "</div>";
 				$("#controller").append(html);
+				
+				$("#" + $(this).attr("id")).bind("touchstart mousedown", function(e) {
+					e.preventDefault();
+					cont_over($(this));
+				});
+				$("#" + $(this).attr("id")).bind("touchend mouseup", function(e) {
+					e.preventDefault();
+					cont_out($(this));
+				});
+				
 				
 				if ($(this).attr("visible") == "hide") {
 					$("#"+$(this).attr("id")).hide();
@@ -146,7 +157,8 @@ function loadLayout(name) {
 				var val = $(this).attr("val");
 				
 				if (attr == "display") {
-					$("#"+id).bind("mousedown", function() {
+					$("#"+id).bind("touchstart mousedown", function(e) {
+						e.preventDefault();
 						if (val == "false") {
 							for(i=0; i<targets.length; i++) {
 								$("#"+targets[i]).hide();
@@ -164,4 +176,22 @@ function loadLayout(name) {
 		mode_loading(false);
 		showController();
 	});
+}
+
+function showController() {
+	// slide left with transparency
+	$('#controller').css('left', w_size+'px');
+	$('#controller').fadeIn('fast').animate({
+            'left':0
+            }, {duration: 'slow', queue: false});
+}
+
+function hideController() {
+	// just hide
+	$('#controller').hide();
+}
+
+function clearController() {
+	// html nonde
+	$('#controller').html("");
 }

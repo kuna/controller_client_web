@@ -33,6 +33,16 @@ function cont_out(obj) {
 		$(obj).css("background", $(obj).attr("org"));
 	}
 	sock.send("EVENT " + device_id + " " + EVENT_BUTTONUP + " " + $(obj).attr('id'));
+	
+	// check flag message
+	if ($(obj).attr("id") == "1" || $(obj).attr("id") == "2") {
+		if (ori_y < -20) {
+			sock.send("EVENT " + device_id + " 500 up");
+		}
+		if (ori_y > 20) {
+			sock.send("EVENT " + device_id + " 500 down");
+		}
+	}
 }
 
 
@@ -180,8 +190,8 @@ var arg_motion=null;
 var timerVal;
 function startSensorTimer() {
 	timerVal = setInterval(function() {
-		if (!isDesktop() && sensor_motion) {sock.send("EVENT " + device_id + " " + EVENT_MOTION + " " + arg_motion);}
-		if (!isDesktop() && sensor_ori) {sock.send("EVENT " + device_id + " " + EVENT_ORIENTATION + " " + arg_ori);}
+		//if (!isDesktop() && sensor_motion) {sock.send("EVENT " + device_id + " " + EVENT_MOTION + " " + arg_motion);}
+		//if (!isDesktop() && sensor_ori) {sock.send("EVENT " + device_id + " " + EVENT_ORIENTATION + " " + arg_ori);}
 	}, 50);
 }
 function stopSensorTimer() {
@@ -190,24 +200,6 @@ function stopSensorTimer() {
 
 
 // etc
-function showController() {
-	// slide left with transparency
-	$('#controller').css('left', w_size+'px');
-	$('#controller').fadeIn('fast').animate({
-            'left':0
-            }, {duration: 'slow', queue: false});
-}
-
-function hideController() {
-	// just hide
-	$('#controller').hide();
-}
-
-function clearController() {
-	// html nonde
-	$('#controller').html("");
-}
-
 function hideJoin() {
 	// slide to left with transparency
 	$('#join').fadeOut('fast').animate({
@@ -430,8 +422,8 @@ $(function() {
 <div id="message" style="display:none;"></div><br />
 
 <!-- for debug -->
-<div id="motion">(not supported)</div><br />
-<div id="motion2">(not supported)</div><br />
+<div id="motion" style="display:none;">(not supported)</div><br />
+<div id="motion2" style="display:none;">(not supported)</div><br />
 <div id="status"></div>
 
 </body>
